@@ -13,7 +13,8 @@ from penpot_mcp.utils import config
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='Validate a Penpot JSON file against a schema')
+    parser = argparse.ArgumentParser(
+        description='Validate a Penpot JSON file against a schema')
     parser.add_argument('input_file', help='Path to the Penpot JSON file to validate')
     parser.add_argument(
         '--schema',
@@ -27,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_json_file(file_path: str) -> Dict[str, Any]:
+def load_json_file(file_path: str) -> dict[str, Any]:
     """
     Load a JSON file.
 
@@ -42,7 +43,7 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
         json.JSONDecodeError: If the file isn't valid JSON
     """
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             return json.load(f)
     except FileNotFoundError:
         sys.exit(f"Error: File not found: {file_path}")
@@ -50,8 +51,8 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
         sys.exit(f"Error: Invalid JSON file: {file_path}")
 
 
-def validate_penpot_file(data: Dict[str, Any], schema: Dict[str,
-                         Any]) -> Tuple[bool, Optional[str]]:
+def validate_penpot_file(data: dict[str, Any], schema: dict[str,
+                         Any]) -> tuple[bool, str | None]:
     """
     Validate a Penpot file against a schema.
 

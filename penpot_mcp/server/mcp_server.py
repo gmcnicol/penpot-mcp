@@ -63,15 +63,15 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         self.file_cache = MemoryCache(ttl_seconds=600)  # 10 minutes
 
         # Storage for rendered component images
-        self.rendered_components: Dict[str, Image] = {}
-        
+        self.rendered_components: dict[str, Image] = {}
+
         # Initialize HTTP server for images if enabled and not in test mode
         self.image_server = None
         self.image_server_url = None
-        
+
         # Detect if running in a test environment
         is_test_env = test_mode or 'pytest' in sys.modules
-        
+
         if config.ENABLE_HTTP_SERVER and not is_test_env:
             try:
                 self.image_server = ImageServer(
@@ -91,7 +91,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         else:
             self._register_resources(resources_only=False)
             self._register_tools(include_resource_tools=False)
-    
+
     def _handle_api_error(self, e: Exception) -> dict:
         """Handle API errors and return user-friendly error messages."""
         if isinstance(e, CloudFlareError):
@@ -101,7 +101,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 "error_type": "cloudflare_protection",
                 "instructions": [
                     "Open your web browser and navigate to https://design.penpot.app",
-                    "Log in to your Penpot account", 
+                    "Log in to your Penpot account",
                     "Complete any CloudFlare human verification challenges if prompted",
                     "Once verified, try your request again"
                 ]
@@ -127,37 +127,41 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 "description": "Model Context Provider for Penpot",
                 "api_url": config.PENPOT_API_URL
             }
-            
+
             if self.image_server and self.image_server.is_running:
                 info["image_server"] = self.image_server_url
-                
+
             return info
         if resources_only:
             return
+
         @self.mcp.resource("penpot://schema", mime_type="application/schema+json")
         def penpot_schema() -> dict:
             """Provide the Penpot API schema as JSON."""
             schema_path = os.path.join(config.RESOURCES_PATH, 'penpot-schema.json')
             try:
-                with open(schema_path, 'r') as f:
+                with open(schema_path) as f:
                     return json.load(f)
             except Exception as e:
                 return {"error": f"Failed to load schema: {str(e)}"}
+
         @self.mcp.resource("penpot://tree-schema", mime_type="application/schema+json")
         def penpot_tree_schema() -> dict:
             """Provide the Penpot object tree schema as JSON."""
             schema_path = os.path.join(config.RESOURCES_PATH, 'penpot-tree-schema.json')
             try:
-                with open(schema_path, 'r') as f:
+                with open(schema_path) as f:
                     return json.load(f)
             except Exception as e:
                 return {"error": f"Failed to load tree schema: {str(e)}"}
+
         @self.mcp.resource("rendered-component://{component_id}", mime_type="image/png")
         def get_rendered_component(component_id: str) -> Image:
             """Return a rendered component image by its ID."""
             if component_id in self.rendered_components:
                 return self.rendered_components[component_id]
             raise Exception(f"Component with ID {component_id} not found")
+
         @self.mcp.resource("penpot://cached-files")
         def get_cached_files() -> dict:
             """List all files currently stored in the cache."""
@@ -173,10 +177,11 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return {"projects": projects}
             except Exception as e:
                 return self._handle_api_error(e)
+
         @self.mcp.tool()
         def get_project_files(project_id: str) -> dict:
             """Get all files contained within a specific Penpot project.
-            
+
             Args:
                 project_id: The ID of the Penpot project
             """
@@ -185,9 +190,10 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return {"files": files}
             except Exception as e:
                 return self._handle_api_error(e)
+
         def get_cached_file(file_id: str) -> dict:
             """Internal helper to retrieve a file, using cache if available.
-            
+
             Args:
                 file_id: The ID of the Penpot file
             """
@@ -200,10 +206,11 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return file_data
             except Exception as e:
                 return self._handle_api_error(e)
+
         @self.mcp.tool()
         def get_file(file_id: str) -> dict:
             """Retrieve a Penpot file by its ID and cache it. Don't use this tool for code generation, use 'get_object_tree' instead.
-            
+
             Args:
                 file_id: The ID of the Penpot file
             """
@@ -213,6 +220,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return file_data
             except Exception as e:
                 return self._handle_api_error(e)
+
         @self.mcp.tool()
         def export_object(
                 file_id: str,
@@ -221,7 +229,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 export_type: str = "png",
                 scale: int = 1) -> Image:
             """Export a Penpot design object as an image.
-            
+
             Args:
                 file_id: The ID of the Penpot file
                 page_id: The ID of the page containing the object
@@ -244,17 +252,19 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 )
                 with open(output_path, "rb") as f:
                     file_content = f.read()
-                    
+
                 image = Image(data=file_content, format=export_type)
-                
+
                 # If HTTP server is enabled, add the image to the server
                 if self.image_server and self.image_server.is_running:
-                    image_id = hashlib.md5(f"{file_id}:{page_id}:{object_id}".encode()).hexdigest()
+                    image_id = hashlib.md5(
+                        f"{file_id}:{page_id}:{object_id}".encode()).hexdigest()
                     # Use the current image_server_url to ensure the correct port
-                    image_url = self.image_server.add_image(image_id, file_content, export_type)
+                    image_url = self.image_server.add_image(
+                        image_id, file_content, export_type)
                     # Add HTTP URL to the image metadata
                     image.http_url = image_url
-                    
+
                 return image
             except Exception as e:
                 if isinstance(e, CloudFlareError):
@@ -266,12 +276,14 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                     try:
                         os.remove(temp_filename)
                     except Exception as e:
-                        print(f"Warning: Failed to delete temporary file {temp_filename}: {str(e)}")
+                        print(f"Warning: Failed to delete temporary file {
+                              temp_filename}: {str(e)}")
+
         @self.mcp.tool()
         def get_object_tree(
-            file_id: str, 
-            object_id: str, 
-            fields: List[str],
+            file_id: str,
+            object_id: str,
+            fields: list[str],
             depth: int = -1,
             format: str = "json"
         ) -> dict:
@@ -288,8 +300,8 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 if "error" in file_data:
                     return file_data
                 result = get_object_subtree_with_fields(
-                    file_data, 
-                    object_id, 
+                    file_data,
+                    object_id,
                     include_fields=fields,
                     depth=depth
                 )
@@ -298,16 +310,17 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 simplified_tree = result["tree"]
                 page_id = result["page_id"]
                 final_result = {"tree": simplified_tree}
-                
+
                 try:
                     image = export_object(
                         file_id=file_id,
                         page_id=page_id,
                         object_id=object_id
                     )
-                    image_id = hashlib.md5(f"{file_id}:{object_id}".encode()).hexdigest()
+                    image_id = hashlib.md5(
+                        f"{file_id}:{object_id}".encode()).hexdigest()
                     self.rendered_components[image_id] = image
-                    
+
                     # Image URI preferences:
                     # 1. HTTP server URL if available
                     # 2. Fallback to MCP resource URI
@@ -316,31 +329,34 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                         final_result["image"] = {
                             "uri": image.http_url,
                             "mcp_uri": image_uri,
-                            "format": image.format if hasattr(image, 'format') else "png"
-                        }
+                            "format": image.format if hasattr(
+                                image,
+                                'format') else "png"}
                     else:
                         final_result["image"] = {
-                            "uri": image_uri,
-                            "format": image.format if hasattr(image, 'format') else "png"
-                        }
+                            "uri": image_uri, "format": image.format if hasattr(
+                                image, 'format') else "png"}
                 except Exception as e:
                     final_result["image_error"] = str(e)
                 if format.lower() == "yaml":
                     try:
                         import yaml
-                        yaml_result = yaml.dump(final_result, default_flow_style=False, sort_keys=False)
+                        yaml_result = yaml.dump(
+                            final_result, default_flow_style=False, sort_keys=False)
                         return {"yaml_result": yaml_result}
                     except ImportError:
-                        return {"format_error": "YAML format requested but PyYAML package is not installed"}
+                        return {
+                            "format_error": "YAML format requested but PyYAML package is not installed"}
                     except Exception as e:
                         return {"format_error": f"Error formatting as YAML: {str(e)}"}
                 return final_result
             except Exception as e:
                 return self._handle_api_error(e)
+
         @self.mcp.tool()
         def search_object(file_id: str, query: str) -> dict:
             """Search for objects within a Penpot file by name.
-            
+
             Args:
                 file_id: The ID of the Penpot file to search in
                 query: Search string (supports regex patterns)
@@ -373,25 +389,29 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 """Provide the Penpot API schema as JSON."""
                 schema_path = os.path.join(config.RESOURCES_PATH, 'penpot-schema.json')
                 try:
-                    with open(schema_path, 'r') as f:
+                    with open(schema_path) as f:
                         return json.load(f)
                 except Exception as e:
                     return {"error": f"Failed to load schema: {str(e)}"}
+
             @self.mcp.tool()
             def penpot_tree_schema() -> dict:
                 """Provide the Penpot object tree schema as JSON."""
-                schema_path = os.path.join(config.RESOURCES_PATH, 'penpot-tree-schema.json')
+                schema_path = os.path.join(
+                    config.RESOURCES_PATH, 'penpot-tree-schema.json')
                 try:
-                    with open(schema_path, 'r') as f:
+                    with open(schema_path) as f:
                         return json.load(f)
                 except Exception as e:
                     return {"error": f"Failed to load tree schema: {str(e)}"}
+
             @self.mcp.tool()
             def get_rendered_component(component_id: str) -> Image:
                 """Return a rendered component image by its ID."""
                 if component_id in self.rendered_components:
                     return self.rendered_components[component_id]
                 raise Exception(f"Component with ID {component_id} not found")
+
             @self.mcp.tool()
             def get_cached_files() -> dict:
                 """List all files currently stored in the cache."""
@@ -408,27 +428,28 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         """
         # Use provided values or fall back to config
         debug = debug if debug is not None else config.DEBUG
-        
+
         # Get mode from parameter, environment variable, or default to stdio
         mode = mode or os.environ.get('MODE', 'stdio')
-        
+
         # Validate mode
         if mode not in ['stdio', 'sse']:
             print(f"Invalid mode: {mode}. Using stdio mode.")
             mode = 'stdio'
 
         if mode == 'sse':
-            print(f"Starting Penpot MCP Server on port {port} (debug={debug}, mode={mode})")
+            print(f"Starting Penpot MCP Server on port {
+                  port} (debug={debug}, mode={mode})")
         else:
             print(f"Starting Penpot MCP Server (debug={debug}, mode={mode})")
-            
+
         # Start HTTP server if enabled and not already running
         if config.ENABLE_HTTP_SERVER and self.image_server and not self.image_server.is_running:
             try:
                 self.image_server_url = self.image_server.start()
             except Exception as e:
                 print(f"Warning: Failed to start image server: {str(e)}")
-            
+
         self.mcp.run(mode)
 
 
@@ -448,9 +469,16 @@ def main():
     parser = argparse.ArgumentParser(description='Run the Penpot MCP Server')
     parser.add_argument('--port', type=int, help='Port to run on')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('--mode', choices=['stdio', 'sse'], default=os.environ.get('MODE', 'stdio'),
-                       help='MCP mode (stdio or sse)')
-    
+    parser.add_argument(
+        '--mode',
+        choices=[
+            'stdio',
+            'sse'],
+        default=os.environ.get(
+            'MODE',
+            'stdio'),
+        help='MCP mode (stdio or sse)')
+
     args = parser.parse_args()
     server.run(port=args.port, debug=args.debug, mode=args.mode)
 

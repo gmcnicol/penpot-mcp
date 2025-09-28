@@ -168,4 +168,4 @@ uv add penpot-mcp@latest
 
 ---
 
-Thank you for helping keep Penpot MCP and our community safe! 🛡️ 
+Thank you for helping keep Penpot MCP and our community safe! 🛡️

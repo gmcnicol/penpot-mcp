@@ -10,14 +10,18 @@ from penpot_mcp.tools.penpot_tree import build_tree, export_tree_to_dot, print_t
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='Generate a tree from a Penpot JSON file')
+    parser = argparse.ArgumentParser(
+        description='Generate a tree from a Penpot JSON file')
     parser.add_argument('input_file', help='Path to the Penpot JSON file')
     parser.add_argument('--filter', '-f', help='Filter nodes by regex pattern')
-    parser.add_argument('--export', '-e', help='Export tree to a file (supports PNG, SVG, etc.)')
+    parser.add_argument(
+        '--export',
+        '-e',
+        help='Export tree to a file (supports PNG, SVG, etc.)')
     return parser.parse_args()
 
 
-def load_penpot_file(file_path: str) -> Dict[str, Any]:
+def load_penpot_file(file_path: str) -> dict[str, Any]:
     """
     Load a Penpot JSON file.
 
@@ -32,7 +36,7 @@ def load_penpot_file(file_path: str) -> Dict[str, Any]:
         json.JSONDecodeError: If the file isn't valid JSON
     """
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             return json.load(f)
     except FileNotFoundError:
         sys.exit(f"Error: File not found: {file_path}")

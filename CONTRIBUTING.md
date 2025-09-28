@@ -123,11 +123,11 @@ When adding new MCP tools or resources:
 async def new_tool(param1: str, param2: int = 10) -> dict:
     """
     Brief description of what this tool does.
-    
+
     Args:
         param1: Description of parameter
         param2: Optional parameter with default
-        
+
     Returns:
         Dictionary with tool results
     """
@@ -213,4 +213,4 @@ By contributing to Penpot MCP, you agree that your contributions will be license
 
 ---
 
-Thank you for helping make Penpot MCP better! 🎨🤖 
+Thank you for helping make Penpot MCP better! 🎨🤖

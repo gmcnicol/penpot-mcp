@@ -21,4 +21,4 @@ mcp-inspector:
 # Run both server (in sse mode) and inspector (server in background)
 all:
 	MODE=sse python -m penpot_mcp.server.mcp_server & \
-	npx @modelcontextprotocol/inspector 
+	npx @modelcontextprotocol/inspector

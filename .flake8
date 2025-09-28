@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 88
-exclude = 
+exclude =
     .venv,
     venv,
     __pycache__,
@@ -11,7 +11,7 @@ exclude =
     node_modules,
     .tox,
     .pytest_cache
-ignore = 
+ignore =
     # Line too long (handled by max-line-length)
     E501,
     # Missing docstrings (can be addressed later)

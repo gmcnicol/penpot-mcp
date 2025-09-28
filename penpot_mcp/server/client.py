@@ -53,7 +53,7 @@ class PenpotMCPClient:
             await self.session.__aexit__(None, None, None)
             self.session = None
 
-    async def list_resources(self) -> List[Dict[str, Any]]:
+    async def list_resources(self) -> list[dict[str, Any]]:
         """
         List available resources from the server.
 
@@ -65,7 +65,7 @@ class PenpotMCPClient:
 
         return await self.session.list_resources()
 
-    async def list_tools(self) -> List[Dict[str, Any]]:
+    async def list_tools(self) -> list[dict[str, Any]]:
         """
         List available tools from the server.
 
@@ -77,7 +77,7 @@ class PenpotMCPClient:
 
         return await self.session.list_tools()
 
-    async def get_server_info(self) -> Dict[str, Any]:
+    async def get_server_info(self) -> dict[str, Any]:
         """
         Get server information.
 
@@ -90,7 +90,7 @@ class PenpotMCPClient:
         info, _ = await self.session.read_resource("server://info")
         return info
 
-    async def list_projects(self) -> Dict[str, Any]:
+    async def list_projects(self) -> dict[str, Any]:
         """
         List Penpot projects.
 
@@ -102,7 +102,7 @@ class PenpotMCPClient:
 
         return await self.session.call_tool("list_projects")
 
-    async def get_project(self, project_id: str) -> Dict[str, Any]:
+    async def get_project(self, project_id: str) -> dict[str, Any]:
         """
         Get details for a specific project.
 
@@ -117,7 +117,7 @@ class PenpotMCPClient:
 
         return await self.session.call_tool("get_project", {"project_id": project_id})
 
-    async def get_project_files(self, project_id: str) -> Dict[str, Any]:
+    async def get_project_files(self, project_id: str) -> dict[str, Any]:
         """
         Get files for a specific project.
 
@@ -132,8 +132,8 @@ class PenpotMCPClient:
 
         return await self.session.call_tool("get_project_files", {"project_id": project_id})
 
-    async def get_file(self, file_id: str, features: Optional[List[str]] = None,
-                       project_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_file(self, file_id: str, features: list[str] | None = None,
+                       project_id: str | None = None) -> dict[str, Any]:
         """
         Get details for a specific file.
 
@@ -156,7 +156,7 @@ class PenpotMCPClient:
 
         return await self.session.call_tool("get_file", params)
 
-    async def get_components(self) -> Dict[str, Any]:
+    async def get_components(self) -> dict[str, Any]:
         """
         Get components from the server.
 
@@ -171,7 +171,7 @@ class PenpotMCPClient:
 
     async def export_object(self, file_id: str, page_id: str, object_id: str,
                             export_type: str = "png", scale: int = 1,
-                            save_to_file: Optional[str] = None) -> Dict[str, Any]:
+                            save_to_file: str | None = None) -> dict[str, Any]:
         """
         Export an object from a Penpot file.
 
@@ -200,7 +200,8 @@ class PenpotMCPClient:
 
         result = await self.session.call_tool("export_object", params)
 
-        # The result is now directly an Image object which has 'data' and 'format' fields
+        # The result is now directly an Image object which has 'data' and 'format'
+        # fields
 
         # If the client wants to save the file
         if save_to_file:
@@ -240,7 +241,8 @@ async def run_client_example():
             projects = projects_result.get("projects", [])
             print(f"Found {len(projects)} projects:")
             for project in projects[:5]:  # Show first 5 projects
-                print(f"- {project.get('name', 'Unknown')} (ID: {project.get('id', 'N/A')})")
+                print(f"- {project.get('name', 'Unknown')
+                           } (ID: {project.get('id', 'N/A')})")
 
         # Example of exporting an object (uncomment and update with actual IDs to test)
         """

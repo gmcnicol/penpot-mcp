@@ -9,20 +9,29 @@ from dotenv import load_dotenv
 
 class CloudFlareError(Exception):
     """Exception raised when CloudFlare protection blocks the request."""
-    
-    def __init__(self, message: str, status_code: int = None, response_text: str = None):
+
+    def __init__(
+            self,
+            message: str,
+            status_code: int = None,
+            response_text: str = None):
         super().__init__(message)
         self.status_code = status_code
         self.response_text = response_text
-        
+
     def __str__(self):
         return f"CloudFlare Protection Error: {super().__str__()}"
 
 
 class PenpotAPIError(Exception):
     """General exception for Penpot API errors."""
-    
-    def __init__(self, message: str, status_code: int = None, response_text: str = None, is_cloudflare: bool = False):
+
+    def __init__(
+            self,
+            message: str,
+            status_code: int = None,
+            response_text: str = None,
+            is_cloudflare: bool = False):
         super().__init__(message)
         self.status_code = status_code
         self.response_text = response_text
@@ -34,13 +43,14 @@ class PenpotAPI:
             self,
             base_url: str = None,
             debug: bool = False,
-            api_key: Optional[str] = None):
+            api_key: str | None = None):
         # Load environment variables if not already loaded
         load_dotenv()
 
         # Use base_url from parameters if provided, otherwise from environment,
         # fallback to default URL
-        self.base_url = base_url or os.getenv("PENPOT_API_URL", "https://design.penpot.app/api")
+        self.base_url = base_url or os.getenv(
+            "PENPOT_API_URL", "https://design.penpot.app/api")
         self.session = requests.Session()
         self.access_token = None
         self.debug = debug
@@ -75,34 +85,36 @@ class PenpotAPI:
             'enable cookies and reload the page',
             'this process is automatic'
         ]
-        
+
         # Check response headers for CloudFlare
         server_header = response.headers.get('server', '').lower()
         cf_ray = response.headers.get('cf-ray')
-        
+
         if 'cloudflare' in server_header or cf_ray:
             return True
-            
+
         # Check response content for CloudFlare indicators
         try:
             response_text = response.text.lower()
             for indicator in cloudflare_indicators:
                 if indicator in response_text:
                     return True
-        except:
+        except BaseException:
             # If we can't read the response text, don't assume it's CloudFlare
             pass
-            
+
         # Check for specific status codes that might indicate CloudFlare blocks
         if response.status_code in [403, 429, 503]:
             # Additional check for CloudFlare-specific error pages
             try:
                 response_text = response.text.lower()
-                if any(['cloudflare' in response_text, 'cf-ray' in response_text, 'attention required' in response_text]):
+                if any(['cloudflare' in response_text,
+                        'cf-ray' in response_text,
+                        'attention required' in response_text]):
                     return True
-            except:
+            except BaseException:
                 pass
-                
+
         return False
 
     def _create_cloudflare_error_message(self, response: requests.Response) -> str:
@@ -114,12 +126,11 @@ class PenpotAPI:
             "2. Log in to your Penpot account\\n"
             "3. Complete any CloudFlare human verification challenges if prompted\\n"
             "4. Once verified, try your request again\\n\\n"
-            "The verification typically lasts for a period of time, after which you may need to repeat the process."
-        )
-        
+            "The verification typically lasts for a period of time, after which you may need to repeat the process.")
+
         if response.status_code:
             return f"{base_message}\\n\\nHTTP Status: {response.status_code}"
-        
+
         return base_message
 
     def set_access_token(self, token: str):
@@ -155,12 +166,13 @@ class PenpotAPI:
         profile_id = profile.get('id') if isinstance(profile, dict) else None
 
         if not profile_id:
-            raise PenpotAPIError("Unable to determine Penpot profile ID from API response.")
+            raise PenpotAPIError(
+                "Unable to determine Penpot profile ID from API response.")
 
         self.profile_id = profile_id
         return profile_id
 
-    def get_profile(self) -> Dict[str, Any]:
+    def get_profile(self) -> dict[str, Any]:
         """
         Get profile information for the current authenticated user.
 
@@ -171,7 +183,8 @@ class PenpotAPI:
 
         payload = {}  # No parameters needed
 
-        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        response = self._make_authenticated_request(
+            'post', url, json=payload, use_transit=False)
 
         # Parse and normalize the response
         data = response.json()
@@ -189,7 +202,12 @@ class PenpotAPI:
 
         return normalized_data
 
-    def _make_authenticated_request(self, method: str, url: str, retry_auth: bool = True, **kwargs) -> requests.Response:
+    def _make_authenticated_request(
+            self,
+            method: str,
+            url: str,
+            retry_auth: bool = True,
+            **kwargs) -> requests.Response:
         """
         Make an authenticated request, handling re-auth if needed.
 
@@ -225,7 +243,8 @@ class PenpotAPI:
                 payload = kwargs['json']
 
                 # Only transform if not already in Transit format
-                if not any(isinstance(k, str) and k.startswith('~:') for k in payload.keys()):
+                if not any(isinstance(k, str) and k.startswith('~:')
+                           for k in payload.keys()):
                     transit_payload = {}
 
                     # Add cmd if not present
@@ -243,7 +262,9 @@ class PenpotAPI:
                         transit_key = f"~:{key}" if not key.startswith('~:') else key
 
                         # Handle special UUID conversion for IDs
-                        if isinstance(value, str) and ('-' in value) and len(value) > 30:
+                        if isinstance(
+                                value, str) and (
+                                '-' in value) and len(value) > 30:
                             transit_value = f"~u{value}"
                         else:
                             transit_value = value
@@ -269,7 +290,9 @@ class PenpotAPI:
 
         # Make the request
         try:
-            response = getattr(self.session, method)(url, headers=combined_headers, **kwargs)
+            response = getattr(
+                self.session, method)(
+                url, headers=combined_headers, **kwargs)
 
             if self.debug:
                 print(f"\nRequest to: {url}")
@@ -286,16 +309,18 @@ class PenpotAPI:
             # Check for CloudFlare errors first
             if self._is_cloudflare_error(e.response):
                 cloudflare_message = self._create_cloudflare_error_message(e.response)
-                raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
-            
+                raise CloudFlareError(
+                    cloudflare_message,
+                    e.response.status_code,
+                    e.response.text)
+
             # Handle authentication errors
             if e.response.status_code in (401, 403):
                 raise PenpotAPIError(
                     "Authentication with Penpot failed. Verify that your PENPOT_API_KEY is "
                     "valid and has not expired.",
                     status_code=e.response.status_code,
-                    response_text=e.response.text
-                )
+                    response_text=e.response.text)
             # Re-raise other errors
             raise
         except requests.RequestException as e:
@@ -303,12 +328,16 @@ class PenpotAPI:
             # Check if we have a response to analyze
             if hasattr(e, 'response') and e.response is not None:
                 if self._is_cloudflare_error(e.response):
-                    cloudflare_message = self._create_cloudflare_error_message(e.response)
-                    raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
+                    cloudflare_message = self._create_cloudflare_error_message(
+                        e.response)
+                    raise CloudFlareError(
+                        cloudflare_message,
+                        e.response.status_code,
+                        e.response.text)
             # Re-raise if not a CloudFlare error
             raise
 
-    def _normalize_transit_response(self, data: Union[Dict, List, Any]) -> Union[Dict, List, Any]:
+    def _normalize_transit_response(self, data: dict | list | Any) -> dict | list | Any:
         """
         Normalize a Transit+JSON response to a more usable format.
 
@@ -342,7 +371,7 @@ class PenpotAPI:
             # Return other types as-is
             return data
 
-    def list_projects(self) -> Dict[str, Any]:
+    def list_projects(self) -> dict[str, Any]:
         """
         List all available projects for the authenticated user.
 
@@ -353,7 +382,8 @@ class PenpotAPI:
 
         payload = {}  # No parameters required
 
-        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        response = self._make_authenticated_request(
+            'post', url, json=payload, use_transit=False)
 
         if self.debug:
             content_type = response.headers.get('Content-Type', '')
@@ -369,7 +399,7 @@ class PenpotAPI:
 
         return data
 
-    def get_project(self, project_id: str) -> Optional[Dict[str, Any]]:
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
         """
         Get details for a specific project.
 
@@ -389,7 +419,7 @@ class PenpotAPI:
 
         return None
 
-    def get_project_files(self, project_id: str) -> List[Dict[str, Any]]:
+    def get_project_files(self, project_id: str) -> list[dict[str, Any]]:
         """
         Get all files for a specific project.
 
@@ -405,14 +435,15 @@ class PenpotAPI:
             "project-id": project_id
         }
 
-        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        response = self._make_authenticated_request(
+            'post', url, json=payload, use_transit=False)
 
         # Parse JSON
         files = response.json()
         return files
 
     def get_file(self, file_id: str, save_data: bool = False,
-                 save_raw_response: bool = False) -> Dict[str, Any]:
+                 save_raw_response: bool = False) -> dict[str, Any]:
         """
         Get details for a specific file.
 
@@ -432,7 +463,8 @@ class PenpotAPI:
             "id": file_id,
         }
 
-        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        response = self._make_authenticated_request(
+            'post', url, json=payload, use_transit=False)
 
         # Save raw response if requested
         if save_raw_response:
@@ -457,7 +489,7 @@ class PenpotAPI:
 
     def create_export(self, file_id: str, page_id: str, object_id: str,
                       export_type: str = "png", scale: int = 1,
-                      profile_id: Optional[str] = None):
+                      profile_id: str | None = None):
         """
         Create an export job for a Penpot object.
 
@@ -534,7 +566,7 @@ class PenpotAPI:
 
     def get_export_resource(self,
                             resource_id: str,
-                            save_to_file: Optional[str] = None) -> Union[bytes, str]:
+                            save_to_file: str | None = None) -> bytes | str:
         """
         Download an export resource by ID.
 
@@ -622,9 +654,9 @@ class PenpotAPI:
             return response.content
 
     def export_and_download(self, file_id: str, page_id: str, object_id: str,
-                            save_to_file: Optional[str] = None, export_type: str = "png",
+                            save_to_file: str | None = None, export_type: str = "png",
                             scale: int = 1, name: str = "Board", suffix: str = "",
-                            profile_id: Optional[str] = None) -> Union[bytes, str]:
+                            profile_id: str | None = None) -> bytes | str:
         """
         Create and download an export in one step.
 
@@ -660,7 +692,7 @@ class PenpotAPI:
             save_to_file=save_to_file
         )
 
-    def extract_components(self, file_data: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_components(self, file_data: dict[str, Any]) -> dict[str, Any]:
         """
         Extract components from file data.
 
@@ -692,7 +724,7 @@ class PenpotAPI:
 
         return {'components': components}
 
-    def analyze_file_structure(self, file_data: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_file_structure(self, file_data: dict[str, Any]) -> dict[str, Any]:
         """
         Analyze file structure and return summary information.
 
@@ -765,7 +797,10 @@ def main():
     # Get file command
     file_parser = subparsers.add_parser('get-file', help='Get file details')
     file_parser.add_argument('--file-id', required=True, help='File ID')
-    file_parser.add_argument('--save', action='store_true', help='Save file data to JSON')
+    file_parser.add_argument(
+        '--save',
+        action='store_true',
+        help='Save file data to JSON')
 
     # Export command
     export_parser = subparsers.add_parser('export', help='Export an object')
@@ -798,7 +833,8 @@ def main():
         projects = api.list_projects()
         print(f"Found {len(projects)} projects:")
         for project in projects:
-            print(f"- {project.get('name')} - {project.get('teamName')} (ID: {project.get('id')})")
+            print(f"- {project.get('name')} - {project.get('teamName')
+                                               } (ID: {project.get('id')})")
 
     elif args.command == 'get-project':
         project = api.get_project(args.id)
@@ -821,7 +857,8 @@ def main():
             print(f"Data saved to {args.file_id}.json")
         else:
             print("File metadata:")
-            print(json.dumps({k: v for k, v in file_data.items() if k != 'data'}, indent=2))
+            print(json.dumps(
+                {k: v for k, v in file_data.items() if k != 'data'}, indent=2))
 
     elif args.command == 'export':
         output_path = api.export_and_download(

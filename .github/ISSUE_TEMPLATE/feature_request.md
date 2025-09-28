@@ -35,4 +35,4 @@ Add any other context, screenshots, mockups, or examples about the feature reque
 How important is this feature to you?
 - [ ] Nice to have
 - [ ] Important for my workflow
-- [ ] Critical for adoption 
+- [ ] Critical for adoption

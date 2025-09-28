@@ -106,7 +106,7 @@ DEBUG=true               # debug logging
 ### Common Workflow for Code Generation
 
 1. List projects → Find target project
-2. Get project files → Locate design file  
+2. Get project files → Locate design file
 3. Search for component → Find specific element
 4. Get tree schema → Understand available fields
 5. Get object tree → Retrieve structure with screenshot

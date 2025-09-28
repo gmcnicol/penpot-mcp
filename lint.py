@@ -13,8 +13,9 @@ from pathlib import Path
 
 def is_venv():
     """Check if running in a virtual environment."""
-    return (hasattr(sys, 'real_prefix') or
-            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+    has_real_prefix = hasattr(sys, 'real_prefix')
+    has_distinct_base = hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+    return has_real_prefix or has_distinct_base
 
 
 def check_dependencies():

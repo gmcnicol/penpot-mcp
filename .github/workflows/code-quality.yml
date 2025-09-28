@@ -9,27 +9,27 @@ on:
 jobs:
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.12"
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v6
-    
+
     - name: Install dependencies
       run: |
         uv sync --extra dev
-    
+
     - name: Run comprehensive linting
       run: |
         echo "Running full linting analysis..."
         uv run python lint.py --autofix || true
-    
+
     - name: Check for auto-fixes
       run: |
         if [[ -n $(git status --porcelain) ]]; then
@@ -38,7 +38,7 @@ jobs:
         else
           echo "No auto-fixes needed"
         fi
-    
+
     - name: Create Pull Request for fixes
       if: success()
       uses: peter-evans/create-pull-request@v7
@@ -48,20 +48,20 @@ jobs:
         title: "🔧 Automated Code Quality Improvements"
         body: |
           ## Automated Code Quality Fixes
-          
+
           This PR contains automated fixes for code quality issues:
-          
+
           ### Changes Applied
           - Line length adjustments
           - Import sorting
           - Whitespace cleanup
           - Unused import removal
-          
+
           ### Review Notes
           - All changes are automatically applied by linting tools
           - Tests should still pass after these changes
           - Manual review recommended for any significant changes
-          
+
           🤖 This PR was automatically created by the Code Quality workflow.
         branch: automated-code-quality-fixes
         delete-branch: true
@@ -70,32 +70,32 @@ jobs:
           code-quality
           automated
           enhancement
-    
+
     - name: Security Analysis
       run: |
         echo "Running security analysis..."
         uv add bandit[toml]
         uv run bandit -r penpot_mcp/ -f json -o bandit-report.json || true
-        
+
         if [ -f bandit-report.json ]; then
           echo "Security report generated"
           cat bandit-report.json | head -20
         fi
-    
+
     - name: Code Coverage Analysis
       run: |
         echo "Running code coverage analysis..."
         uv run pytest --cov=penpot_mcp tests/ --cov-report=html --cov-report=term
-        
+
         echo "Coverage report generated in htmlcov/"
-    
+
     - name: Upload Coverage Report
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
         retention-days: 30
-    
+
     - name: Upload Security Report
       uses: actions/upload-artifact@v4
       if: always()
@@ -103,7 +103,7 @@ jobs:
         name: security-report
         path: bandit-report.json
         retention-days: 30
-    
+
     - name: Summary
       run: |
         echo "## Code Quality Summary" >> $GITHUB_STEP_SUMMARY

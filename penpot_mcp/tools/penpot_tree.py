@@ -12,7 +12,7 @@ from anytree import Node, RenderTree
 from anytree.exporter import DotExporter
 
 
-def build_tree(data: Dict[str, Any]) -> Node:
+def build_tree(data: dict[str, Any]) -> Node:
     """
     Build a tree representation of Penpot file data.
 
@@ -104,22 +104,23 @@ def build_tree(data: Dict[str, Any]) -> Node:
 
             # Skip if parent ID is the same as object ID (circular reference)
             if parent_id and parent_id == obj_id:
-                print(
-                    f"Warning: Object {obj_id} references itself as parent. Attaching to page instead.")
+                print(f"Warning: Object {
+                    obj_id} references itself as parent. Attaching to page instead.")
                 page_nodes[obj_id].parent = nodes[page_id]
             elif parent_id and parent_id in page_nodes:
                 # Check for circular references in the node hierarchy
                 is_circular = False
                 check_node = page_nodes[parent_id]
                 while check_node.parent is not None:
-                    if hasattr(check_node.parent, 'obj_id') and check_node.parent.obj_id == obj_id:
+                    if hasattr(check_node.parent,
+                               'obj_id') and check_node.parent.obj_id == obj_id:
                         is_circular = True
                         break
                     check_node = check_node.parent
 
                 if is_circular:
-                    print(
-                        f"Warning: Circular reference detected for {obj_id}. Attaching to page instead.")
+                    print(f"Warning: Circular reference detected for {
+                        obj_id}. Attaching to page instead.")
                     page_nodes[obj_id].parent = nodes[page_id]
                 else:
                     page_nodes[obj_id].parent = page_nodes[parent_id]
@@ -134,7 +135,7 @@ def build_tree(data: Dict[str, Any]) -> Node:
     return root
 
 
-def print_tree(root: Node, filter_pattern: Optional[str] = None) -> None:
+def print_tree(root: Node, filter_pattern: str | None = None) -> None:
     """
     Print a tree representation to the console, with optional filtering.
 
@@ -211,7 +212,10 @@ def print_tree(root: Node, filter_pattern: Optional[str] = None) -> None:
         print(f"{pre}{node_name}")
 
 
-def export_tree_to_dot(root: Node, output_file: str, filter_pattern: Optional[str] = None) -> bool:
+def export_tree_to_dot(
+        root: Node,
+        output_file: str,
+        filter_pattern: str | None = None) -> bool:
     """
     Export the tree to a DOT file (Graphviz format).
 
@@ -238,7 +242,7 @@ def export_tree_to_dot(root: Node, output_file: str, filter_pattern: Optional[st
         return False
 
 
-def find_page_containing_object(content: Dict[str, Any], object_id: str) -> Optional[str]:
+def find_page_containing_object(content: dict[str, Any], object_id: str) -> str | None:
     """
     Find which page contains the specified object.
 
@@ -278,7 +282,7 @@ def find_page_containing_object(content: Dict[str, Any], object_id: str) -> Opti
     return None
 
 
-def find_object_in_tree(tree: Node, target_id: str) -> Optional[Dict[str, Any]]:
+def find_object_in_tree(tree: Node, target_id: str) -> dict[str, Any] | None:
     """
     Find an object in the tree by its ID and return its subtree as a dictionary.
 
@@ -316,7 +320,7 @@ def find_object_in_tree(tree: Node, target_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def convert_node_to_dict(node: Node) -> Dict[str, Any]:
+def convert_node_to_dict(node: Node) -> dict[str, Any]:
     """
     Convert an anytree.Node to a dictionary format for API response.
 
@@ -348,7 +352,8 @@ def convert_node_to_dict(node: Node) -> Dict[str, Any]:
     return result
 
 
-def get_object_subtree(file_data: Dict[str, Any], object_id: str) -> Dict[str, Union[Dict, str]]:
+def get_object_subtree(file_data: dict[str, Any],
+                       object_id: str) -> dict[str, dict | str]:
     """
     Get a simplified tree representation of an object and its children.
 
@@ -386,51 +391,51 @@ def get_object_subtree(file_data: Dict[str, Any], object_id: str) -> Dict[str, U
         return {"error": str(e)}
 
 
-def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str, 
-                                  include_fields: Optional[List[str]] = None, 
-                                  depth: int = -1) -> Dict[str, Any]:
+def get_object_subtree_with_fields(file_data: dict[str, Any], object_id: str,
+                                   include_fields: list[str] | None = None,
+                                   depth: int = -1) -> dict[str, Any]:
     """
     Get a filtered tree representation of an object with only specified fields.
-    
+
     This function finds an object in the Penpot file data and returns a subtree
     with the object as the root, including only the specified fields and limiting
     the depth of the tree if requested.
-    
+
     Args:
         file_data: The Penpot file data
         object_id: The ID of the object to get the tree for
         include_fields: List of field names to include in the output (None means include all)
         depth: Maximum depth of the tree (-1 means no limit)
-    
+
     Returns:
         Dictionary containing the filtered tree or an error message
     """
     try:
         # Get the content from file data
         content = file_data.get('data', file_data)
-        
+
         # Find which page contains the object
         page_id = find_page_containing_object(content, object_id)
-        
+
         if not page_id:
             return {"error": f"Object {object_id} not found in file"}
-            
+
         # Get the page data
         page_data = content.get('pagesIndex', {}).get(page_id, {})
         objects_dict = page_data.get('objects', {})
-        
+
         # Check if the object exists in this page
         if object_id not in objects_dict:
             return {"error": f"Object {object_id} not found in page {page_id}"}
-            
+
         # Track visited nodes to prevent infinite loops
         visited = set()
-        
+
         # Function to recursively build the filtered object tree
         def build_filtered_object_tree(obj_id: str, current_depth: int = 0):
             if obj_id not in objects_dict:
                 return None
-            
+
             # Check for circular reference
             if obj_id in visited:
                 # Return a placeholder to indicate circular reference
@@ -440,27 +445,28 @@ def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str,
                     'type': objects_dict[obj_id].get('type', 'unknown'),
                     '_circular_reference': True
                 }
-            
+
             # Mark this object as visited
             visited.add(obj_id)
-            
+
             obj_data = objects_dict[obj_id]
-            
+
             # Create a new dict with only the requested fields or all fields if None
             if include_fields is None:
                 filtered_obj = obj_data.copy()
             else:
-                filtered_obj = {field: obj_data[field] for field in include_fields if field in obj_data}
-            
+                filtered_obj = {field: obj_data[field]
+                                for field in include_fields if field in obj_data}
+
             # Always include the id field
             filtered_obj['id'] = obj_id
-            
+
             # If depth limit reached, don't process children
             if depth != -1 and current_depth >= depth:
                 # Remove from visited before returning
                 visited.remove(obj_id)
                 return filtered_obj
-                
+
             # Find all children of this object
             children = []
             for child_id, child_data in objects_dict.items():
@@ -468,26 +474,26 @@ def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str,
                     child_tree = build_filtered_object_tree(child_id, current_depth + 1)
                     if child_tree:
                         children.append(child_tree)
-            
+
             # Add children field only if we have children
             if children:
                 filtered_obj['children'] = children
-            
+
             # Remove from visited after processing
             visited.remove(obj_id)
-                
+
             return filtered_obj
-        
+
         # Build the filtered tree starting from the requested object
         object_tree = build_filtered_object_tree(object_id)
-        
+
         if not object_tree:
             return {"error": f"Failed to build object tree for {object_id}"}
-            
+
         return {
             "tree": object_tree,
             "page_id": page_id
         }
-        
+
     except Exception as e:
         return {"error": str(e)}

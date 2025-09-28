@@ -92,4 +92,4 @@ Refer to the specific documentation for these tools for integration instructions
 
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io)
 - [Claude Developer Documentation](https://docs.anthropic.com)
-- [MCP Python SDK Documentation](https://github.com/modelcontextprotocol/python-sdk) 
+- [MCP Python SDK Documentation](https://github.com/modelcontextprotocol/python-sdk)
