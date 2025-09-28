@@ -5,7 +5,7 @@ PORT?=5000
 MODE?=stdio
 PYTEST_ARGS?=
 
-.PHONY: help install sync lint lint-fix format test coverage pre-commit pre-commit-install mcp-server mcp-server-sse mcp-inspector mcp-dev clean
+.PHONY: help install sync lint lint-fix format test coverage pre-commit pre-commit-install mcp-server mcp-server-sse mcp-inspector mcp-dev config-snippet clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
@@ -45,6 +45,9 @@ mcp-dev: ## Run MCP server (SSE) and inspector together
 	INSPECTOR_PID=$$!; \
 	npx @modelcontextprotocol/inspector; \
 	wait $$INSPECTOR_PID
+
+config-snippet: ## Print Codex config snippet for this repository
+	$(UV) run python scripts/codex_config_snippet.py
 
 clean: ## Remove caches and build artefacts
 	rm -rf .pytest_cache .coverage .coverage.* htmlcov
