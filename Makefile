@@ -1,24 +1,50 @@
-# Makefile for Penpot MCP
-.PHONY: mcp-server mcp-inspector mcp-server-sse
+# Penpot MCP helper targets
 
-# Default port for MCP server
-PORT ?= 5000
-# Default mode is stdio (can be overridden by environment variable MODE)
-MODE ?= stdio
+UV?=uv
+PORT?=5000
+MODE?=stdio
+PYTEST_ARGS?=
 
-# Launch MCP server with configurable mode (stdio or sse)
-mcp-server:
-	python -m penpot_mcp.server.mcp_server --mode $(MODE)
+.PHONY: help install sync lint lint-fix format test coverage pre-commit pre-commit-install mcp-server mcp-server-sse mcp-inspector mcp-dev clean
 
-# Launch MCP server specifically in SSE mode
-mcp-server-sse:
-	MODE=sse python -m penpot_mcp.server.mcp_server
+help: ## Show available targets
+	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
-# Launch MCP inspector - requires the server to be running in sse mode
-mcp-inspector:
+install sync: ## Install project dependencies (including dev extras)
+	$(UV) sync --extra dev
+
+lint: ## Run lint checks
+	$(UV) run python lint.py
+
+lint-fix format: ## Auto-fix lint issues where possible
+	$(UV) run python lint.py --autofix
+
+pre-commit-install: ## Install git hooks via pre-commit
+	$(UV) run pre-commit install
+
+pre-commit: ## Run pre-commit checks across the repo
+	$(UV) run pre-commit run --all-files
+
+test: ## Run the pytest suite
+	$(UV) run pytest $(PYTEST_ARGS)
+
+coverage: ## Run pytest with coverage enabled
+	$(UV) run pytest --cov=penpot_mcp tests
+
+mcp-server: ## Start the MCP server in stdio (default) or specified MODE
+	$(UV) run penpot-mcp --mode $(MODE) --port $(PORT)
+
+mcp-server-sse: ## Start the MCP server in SSE mode
+	$(UV) run penpot-mcp --mode sse --port $(PORT)
+
+mcp-inspector: ## Launch the MCP inspector (requires server running in SSE mode)
 	npx @modelcontextprotocol/inspector
 
-# Run both server (in sse mode) and inspector (server in background)
-all:
-	MODE=sse python -m penpot_mcp.server.mcp_server & \
-	npx @modelcontextprotocol/inspector
+mcp-dev: ## Run MCP server (SSE) and inspector together
+	$(UV) run penpot-mcp --mode sse --port $(PORT) & \
+	INSPECTOR_PID=$$!; \
+	npx @modelcontextprotocol/inspector; \
+	wait $$INSPECTOR_PID
+
+clean: ## Remove caches and build artefacts
+	rm -rf .pytest_cache .coverage .coverage.* htmlcov
