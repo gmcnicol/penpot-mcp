@@ -52,10 +52,9 @@ uv run pre-commit install
 # Copy environment template
 cp env.example .env
 
-# Edit .env with your Penpot credentials
+# Edit .env with your Penpot settings
 # PENPOT_API_URL=https://design.penpot.app/api
-# PENPOT_USERNAME=your_username
-# PENPOT_PASSWORD=your_password
+# PENPOT_API_KEY=your_penpot_access_token  # generate via Penpot Account Settings → Access Tokens
 ```
 
 ### 4. Run Tests

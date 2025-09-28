@@ -34,8 +34,7 @@ class PenpotAPI:
             self,
             base_url: str = None,
             debug: bool = False,
-            email: Optional[str] = None,
-            password: Optional[str] = None):
+            api_key: Optional[str] = None):
         # Load environment variables if not already loaded
         load_dotenv()
 
@@ -45,9 +44,8 @@ class PenpotAPI:
         self.session = requests.Session()
         self.access_token = None
         self.debug = debug
-        self.email = email or os.getenv("PENPOT_USERNAME")
-        self.password = password or os.getenv("PENPOT_PASSWORD")
         self.profile_id = None
+        self.api_key = api_key or os.getenv("PENPOT_API_KEY")
 
         # Set default headers - we'll use different headers at request time
         # based on the required content type (JSON vs Transit+JSON)
@@ -56,6 +54,9 @@ class PenpotAPI:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
+
+        if self.api_key:
+            self.set_access_token(self.api_key)
 
     def _is_cloudflare_error(self, response: requests.Response) -> bool:
         """Check if the response indicates a CloudFlare error."""
@@ -124,6 +125,7 @@ class PenpotAPI:
     def set_access_token(self, token: str):
         """Set the auth token for authentication."""
         self.access_token = token
+        self.api_key = token
         # For cookie-based auth, set the auth-token cookie
         self.session.cookies.set("auth-token", token)
         # Also set Authorization header for APIs that use it
@@ -131,29 +133,32 @@ class PenpotAPI:
             "Authorization": f"Token {token}"
         })
 
-    def login_with_password(
-            self,
-            email: Optional[str] = None,
-            password: Optional[str] = None) -> str:
-        """
-        Login with email and password to get an auth token.
+    def _ensure_access_token(self):
+        """Ensure an API access token is available for authenticated calls."""
+        if not self.access_token:
+            env_token = os.getenv("PENPOT_API_KEY")
+            if env_token:
+                self.set_access_token(env_token)
 
-        This method uses the same cookie-based auth approach as the export methods.
+        if not self.access_token:
+            raise PenpotAPIError(
+                "Penpot API key is not configured. Set the PENPOT_API_KEY environment "
+                "variable or pass api_key to PenpotAPI()."
+            )
 
-        Args:
-            email: Email for Penpot account (if None, will use stored email or PENPOT_USERNAME env var)
-            password: Password for Penpot account (if None, will use stored password or PENPOT_PASSWORD env var)
+    def _ensure_profile_id(self) -> str:
+        """Fetch and cache the current profile ID when required."""
+        if self.profile_id:
+            return self.profile_id
 
-        Returns:
-            Auth token for API calls
-        """
-        # Use the export authentication which also extracts profile ID
-        token = self.login_for_export(email, password)
-        self.set_access_token(token)
-        # Profile ID is now extracted during login_for_export, no need to call get_profile
-        if self.debug and self.profile_id:
-            print(f"\nProfile ID available: {self.profile_id}")
-        return token
+        profile = self.get_profile()
+        profile_id = profile.get('id') if isinstance(profile, dict) else None
+
+        if not profile_id:
+            raise PenpotAPIError("Unable to determine Penpot profile ID from API response.")
+
+        self.profile_id = profile_id
+        return profile_id
 
     def get_profile(self) -> Dict[str, Any]:
         """
@@ -184,121 +189,6 @@ class PenpotAPI:
 
         return normalized_data
 
-    def login_for_export(self, email: Optional[str] = None, password: Optional[str] = None) -> str:
-        """
-        Login with email and password to get an auth token for export operations.
-
-        This is required for export operations which use a different authentication
-        mechanism than the standard API access token.
-
-        Args:
-            email: Email for Penpot account (if None, will use stored email or PENPOT_USERNAME env var)
-            password: Password for Penpot account (if None, will use stored password or PENPOT_PASSWORD env var)
-
-        Returns:
-            Auth token extracted from cookies
-        """
-        # Use parameters if provided, else use instance variables, else check environment variables
-        email = email or self.email or os.getenv("PENPOT_USERNAME")
-        password = password or self.password or os.getenv("PENPOT_PASSWORD")
-
-        if not email or not password:
-            raise ValueError(
-                "Email and password are required for export authentication. "
-                "Please provide them as parameters or set PENPOT_USERNAME and "
-                "PENPOT_PASSWORD environment variables."
-            )
-
-        url = f"{self.base_url}/rpc/command/login-with-password"
-
-        # Use Transit+JSON format
-        payload = {
-            "~:email": email,
-            "~:password": password
-        }
-
-        if self.debug:
-            print("\nLogin request payload (Transit+JSON format):")
-            print(json.dumps(payload, indent=2).replace(password, "********"))
-
-        # Create a new session just for this request
-        login_session = requests.Session()
-
-        # Set headers
-        headers = {
-            "Content-Type": "application/transit+json",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-
-        response = login_session.post(url, json=payload, headers=headers)
-        if self.debug and response.status_code != 200:
-            print(f"\nError response: {response.status_code}")
-            print(f"Response text: {response.text}")
-        response.raise_for_status()
-
-        # Extract profile ID from response
-        try:
-            # The response is in Transit+JSON array format
-            data = response.json()
-            if isinstance(data, list):
-                # Convert Transit array to dict
-                transit_dict = {}
-                i = 1  # Skip the "^ " marker
-                while i < len(data) - 1:
-                    key = data[i]
-                    value = data[i + 1]
-                    transit_dict[key] = value
-                    i += 2
-                
-                # Extract profile ID
-                if "~:id" in transit_dict:
-                    profile_id = transit_dict["~:id"]
-                    # Remove the ~u prefix for UUID
-                    if isinstance(profile_id, str) and profile_id.startswith("~u"):
-                        profile_id = profile_id[2:]
-                    self.profile_id = profile_id
-                    if self.debug:
-                        print(f"\nExtracted profile ID from login response: {profile_id}")
-        except Exception as e:
-            if self.debug:
-                print(f"\nCouldn't extract profile ID from response: {e}")
-
-        # Also try to extract profile ID from auth-data cookie
-        if not self.profile_id:
-            for cookie in login_session.cookies:
-                if cookie.name == "auth-data":
-                    # Cookie value is like: "profile-id=7ae66c33-6ede-81e2-8006-6a1b4dce3d2b"
-                    if "profile-id=" in cookie.value:
-                        profile_id = cookie.value.split("profile-id=")[1].split(";")[0].strip('"')
-                        self.profile_id = profile_id
-                        if self.debug:
-                            print(f"\nExtracted profile ID from auth-data cookie: {profile_id}")
-                    break
-
-        # Extract auth token from cookies
-        if 'Set-Cookie' in response.headers:
-            if self.debug:
-                print("\nSet-Cookie header found")
-
-            for cookie in login_session.cookies:
-                if cookie.name == "auth-token":
-                    if self.debug:
-                        print(f"\nAuth token extracted from cookies: {cookie.value[:10]}...")
-                    return cookie.value
-
-            raise ValueError("Auth token not found in response cookies")
-        else:
-            # Try to extract from response JSON if available
-            try:
-                data = response.json()
-                if 'auth-token' in data:
-                    return data['auth-token']
-            except Exception:
-                pass
-
-            # If we reached here, we couldn't find the token
-            raise ValueError("Auth token not found in response cookies or JSON body")
-
     def _make_authenticated_request(self, method: str, url: str, retry_auth: bool = True, **kwargs) -> requests.Response:
         """
         Make an authenticated request, handling re-auth if needed.
@@ -315,11 +205,8 @@ class PenpotAPI:
         Returns:
             The response object
         """
-        # If we don't have a token yet but have credentials, login first
-        if not self.access_token and self.email and self.password:
-            if self.debug:
-                print("\nNo access token set, logging in with credentials...")
-            self.login_with_password()
+        # Ensure we have an access token available
+        self._ensure_access_token()
 
         # Set up headers
         headers = kwargs.get('headers', {})
@@ -402,28 +289,15 @@ class PenpotAPI:
                 raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
             
             # Handle authentication errors
-            if e.response.status_code in (401, 403) and self.email and self.password and retry_auth:
-                # Special case: don't retry auth for get-profile to avoid infinite loops
-                if url.endswith('/get-profile'):
-                    raise
-                    
-                if self.debug:
-                    print("\nAuthentication failed. Trying to re-login...")
-
-                # Re-login and update token
-                self.login_with_password()
-
-                # Update headers with new token
-                headers['Authorization'] = f"Token {self.access_token}"
-                combined_headers = {**self.session.headers, **headers}
-
-                # Retry the request with the new token (but don't retry auth again)
-                response = getattr(self.session, method)(url, headers=combined_headers, **kwargs)
-                response.raise_for_status()
-                return response
-            else:
-                # Re-raise other errors
-                raise
+            if e.response.status_code in (401, 403):
+                raise PenpotAPIError(
+                    "Authentication with Penpot failed. Verify that your PENPOT_API_KEY is "
+                    "valid and has not expired.",
+                    status_code=e.response.status_code,
+                    response_text=e.response.text
+                )
+            # Re-raise other errors
+            raise
         except requests.RequestException as e:
             # Handle other request exceptions (connection errors, timeouts, etc.)
             # Check if we have a response to analyze
@@ -583,7 +457,6 @@ class PenpotAPI:
 
     def create_export(self, file_id: str, page_id: str, object_id: str,
                       export_type: str = "png", scale: int = 1,
-                      email: Optional[str] = None, password: Optional[str] = None,
                       profile_id: Optional[str] = None):
         """
         Create an export job for a Penpot object.
@@ -596,22 +469,16 @@ class PenpotAPI:
             scale: Scale factor for the export
             name: Name for the export
             suffix: Suffix to add to the export name
-            email: Email for authentication (if different from instance)
-            password: Password for authentication (if different from instance)
             profile_id: Optional profile ID (if not provided, will be fetched automatically)
 
         Returns:
             Export resource ID
         """
-        # This uses the cookie auth approach, which requires login
-        token = self.login_for_export(email, password)
+        self._ensure_access_token()
 
-        # If profile_id is not provided, get it from instance variable
+        # If profile_id is not provided, retrieve and cache it via the API
         if not profile_id:
-            profile_id = self.profile_id
-
-        if not profile_id:
-            raise ValueError("Profile ID not available. It should be automatically extracted during login.")
+            profile_id = self._ensure_profile_id()
 
         # Build the URL for export creation
         url = f"{self.base_url}/export"
@@ -636,10 +503,6 @@ class PenpotAPI:
             print("\nCreating export with parameters:")
             print(json.dumps(payload, indent=2))
 
-        # Create a session with the auth token
-        export_session = requests.Session()
-        export_session.cookies.set("auth-token", token)
-
         headers = {
             "Content-Type": "application/transit+json",
             "Accept": "application/transit+json",
@@ -647,7 +510,7 @@ class PenpotAPI:
         }
 
         # Make the request
-        response = export_session.post(url, json=payload, headers=headers)
+        response = self.session.post(url, json=payload, headers=headers)
 
         if self.debug and response.status_code != 200:
             print(f"\nError response: {response.status_code}")
@@ -671,24 +534,18 @@ class PenpotAPI:
 
     def get_export_resource(self,
                             resource_id: str,
-                            save_to_file: Optional[str] = None,
-                            email: Optional[str] = None,
-                            password: Optional[str] = None) -> Union[bytes,
-                                                                     str]:
+                            save_to_file: Optional[str] = None) -> Union[bytes, str]:
         """
         Download an export resource by ID.
 
         Args:
             resource_id: The resource ID from create_export
             save_to_file: Path to save the file (if None, returns the content)
-            email: Email for authentication (if different from instance)
-            password: Password for authentication (if different from instance)
 
         Returns:
             Either the file content as bytes, or the path to the saved file
         """
-        # This uses the cookie auth approach, which requires login
-        token = self.login_for_export(email, password)
+        self._ensure_access_token()
 
         # Build the URL for the resource
         url = f"{self.base_url}/export"
@@ -706,12 +563,8 @@ class PenpotAPI:
         if self.debug:
             print(f"\nFetching export resource: {url}")
 
-        # Create a session with the auth token
-        export_session = requests.Session()
-        export_session.cookies.set("auth-token", token)
-
         # Make the request
-        response = export_session.post(url, json=payload, headers=headers)
+        response = self.session.post(url, json=payload, headers=headers)
 
         if self.debug and response.status_code != 200:
             print(f"\nError response: {response.status_code}")
@@ -771,7 +624,6 @@ class PenpotAPI:
     def export_and_download(self, file_id: str, page_id: str, object_id: str,
                             save_to_file: Optional[str] = None, export_type: str = "png",
                             scale: int = 1, name: str = "Board", suffix: str = "",
-                            email: Optional[str] = None, password: Optional[str] = None,
                             profile_id: Optional[str] = None) -> Union[bytes, str]:
         """
         Create and download an export in one step.
@@ -787,8 +639,6 @@ class PenpotAPI:
             scale: Scale factor for the export
             name: Name for the export
             suffix: Suffix to add to the export name
-            email: Email for authentication (if different from instance)
-            password: Password for authentication (if different from instance)
             profile_id: Optional profile ID (if not provided, will be fetched automatically)
 
         Returns:
@@ -801,17 +651,13 @@ class PenpotAPI:
             object_id=object_id,
             export_type=export_type,
             scale=scale,
-            email=email,
-            password=password,
             profile_id=profile_id
         )
 
         # Download the resource
         return self.get_export_resource(
             resource_id=resource_id,
-            save_to_file=save_to_file,
-            email=email,
-            password=password
+            save_to_file=save_to_file
         )
 
     def extract_components(self, file_data: Dict[str, Any]) -> Dict[str, Any]:

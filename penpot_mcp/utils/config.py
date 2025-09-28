@@ -19,7 +19,6 @@ HTTP_SERVER_PORT = int(os.environ.get('HTTP_SERVER_PORT', 0))
 
 # Penpot API configuration
 PENPOT_API_URL = os.environ.get('PENPOT_API_URL', 'https://design.penpot.app/api')
-PENPOT_USERNAME = os.environ.get('PENPOT_USERNAME')
-PENPOT_PASSWORD = os.environ.get('PENPOT_PASSWORD')
+PENPOT_API_KEY = os.environ.get('PENPOT_API_KEY')
 
 RESOURCES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources')

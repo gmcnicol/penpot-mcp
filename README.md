@@ -141,21 +141,18 @@ pip install -e .
 
 ### Configuration
 
-Create a `.env` file based on `env.example` with your Penpot credentials:
+Create a `.env` file based on `env.example` with your Penpot settings:
 
 ```
 PENPOT_API_URL=https://design.penpot.app/api
-PENPOT_USERNAME=your_penpot_username
-PENPOT_PASSWORD=your_penpot_password
+PENPOT_API_KEY=your_penpot_access_token
 PORT=5000
 DEBUG=true
 ```
 
-> **⚠️ CloudFlare Protection Notice**: The Penpot cloud site (penpot.app) uses CloudFlare protection that may occasionally block API requests. If you encounter authentication errors or blocked requests:
-> 1. Open your web browser and navigate to [https://design.penpot.app](https://design.penpot.app)
-> 2. Log in to your Penpot account
-> 3. Complete any CloudFlare human verification challenges if prompted
-> 4. Once verified, the API requests should work normally for a period of time
+> 🔐 **How to generate an API key:** In Penpot, open **Account Settings → Access Tokens**, create a new token, and copy the value. Tokens work for all account types—including OAuth/social logins—so you no longer need a username/password pair.
+>
+> **⚠️ CloudFlare Protection Notice**: The Penpot cloud site (penpot.app) uses CloudFlare protection that may occasionally block API requests. If you encounter authentication errors or blocked requests, visit [https://design.penpot.app](https://design.penpot.app) in your browser and complete any verification challenges before retrying your request.
 
 ## Usage
 
@@ -278,8 +275,7 @@ Add the following configuration to your Claude Desktop config file (`~/Library/A
       "args": ["penpot-mcp"],
       "env": {
         "PENPOT_API_URL": "https://design.penpot.app/api",
-        "PENPOT_USERNAME": "your_penpot_username",
-        "PENPOT_PASSWORD": "your_penpot_password"
+        "PENPOT_API_KEY": "your_penpot_access_token"
       }
     }
   }
@@ -301,23 +297,21 @@ Cursor IDE supports MCP servers through its AI integration features. To configur
    {
      "mcpServers": {
        "penpot": {
-         "command": "uvx",
-         "args": ["penpot-mcp"],
-         "env": {
-           "PENPOT_API_URL": "https://design.penpot.app/api",
-           "PENPOT_USERNAME": "your_penpot_username",
-           "PENPOT_PASSWORD": "your_penpot_password"
-         }
-       }
-     }
-   }
+       "command": "uvx",
+       "args": ["penpot-mcp"],
+       "env": {
+          "PENPOT_API_URL": "https://design.penpot.app/api",
+          "PENPOT_API_KEY": "your_penpot_access_token"
+        }
+      }
+    }
+  }
    ```
 
 3. **Alternative: Use environment variables** by creating a `.env` file in your project root:
    ```bash
    PENPOT_API_URL=https://design.penpot.app/api
-   PENPOT_USERNAME=your_penpot_username
-   PENPOT_PASSWORD=your_penpot_password
+   PENPOT_API_KEY=your_penpot_access_token
    ```
 
 4. **Start the MCP server** in your project:
@@ -341,6 +335,34 @@ Both Claude Desktop and Cursor integration provide:
 - **Natural language queries** about your design files
 - **Real-time design feedback** and suggestions
 - **Design system documentation** generation
+
+### Codex CLI Integration
+
+Codex expects MCP entries under the `[mcp_servers.*]` table (`docs/config.md`). To point Codex at this repository’s MCP server, add a block like the one below to `~/.config/codex/config.toml`, replacing `/absolute/path/to/penpot-mcp` with the actual path on your machine:
+
+```toml
+[mcp_servers.penpot]
+command = "uv"
+args = [
+  "run",
+  "--project",
+  "/absolute/path/to/penpot-mcp",
+  "penpot-mcp",
+  "--mode",
+  "stdio"
+]
+transport = "stdio"
+env = {
+  PENPOT_API_URL = "https://design.penpot.app/api",
+  PENPOT_API_KEY = "your_penpot_access_token"
+}
+```
+
+Codex will now launch the local server on demand. You can also start it manually with:
+
+```bash
+uv run --project /absolute/path/to/penpot-mcp penpot-mcp --mode stdio
+```
 
 ## Package Structure
 

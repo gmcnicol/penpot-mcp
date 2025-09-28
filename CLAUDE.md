@@ -62,11 +62,11 @@ penpot-validate path/to/penpot_file.json
 2. **API Client** (`penpot_mcp/api/penpot_api.py`)
    - REST client for Penpot platform
    - Transit+JSON format handling
-   - Cookie-based authentication with auto-refresh
-   - Lazy authentication pattern
+   - Authorization header built from Penpot API access tokens
+   - Lazy profile lookups with cached IDs for exports
 
 3. **Key Design Patterns**
-   - **Authentication**: Cookie-based with automatic re-authentication on 401/403
+   - **Authentication**: API keys (access tokens) supplied via `Authorization: Token …`
    - **Caching**: In-memory file cache to reduce API calls
    - **Resource/Tool Duality**: Resources can be exposed as tools via RESOURCES_AS_TOOLS config
    - **Transit Format**: Special handling for UUIDs (`~u` prefix) and keywords (`~:` prefix)
@@ -87,12 +87,13 @@ Create a `.env` file with:
 
 ```env
 PENPOT_API_URL=https://design.penpot.app/api
-PENPOT_USERNAME=your_username
-PENPOT_PASSWORD=your_password
+PENPOT_API_KEY=your_penpot_access_token
 ENABLE_HTTP_SERVER=true  # for image serving
 RESOURCES_AS_TOOLS=false # MCP resource mode
 DEBUG=true               # debug logging
 ```
+
+> Generate API keys from **Account Settings → Access Tokens** inside Penpot. Keys work for both password and social-login accounts.
 
 ### Working with the Codebase
 

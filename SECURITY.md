@@ -83,13 +83,11 @@ We believe in recognizing security researchers who help keep our users safe:
 
 ```bash
 # Use environment variables for sensitive data
-export PENPOT_USERNAME="your_username"
-export PENPOT_PASSWORD="your_secure_password"
+export PENPOT_API_KEY="your_penpot_access_token"
 export PENPOT_API_URL="https://design.penpot.app/api"
 
 # Or use a .env file (never commit this!)
-echo "PENPOT_USERNAME=your_username" > .env
-echo "PENPOT_PASSWORD=your_secure_password" >> .env
+echo "PENPOT_API_KEY=your_penpot_access_token" > .env
 echo "PENPOT_API_URL=https://design.penpot.app/api" >> .env
 ```
 

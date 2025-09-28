@@ -15,23 +15,23 @@ def test_credentials():
     load_dotenv()
     
     api_url = os.getenv("PENPOT_API_URL")
-    username = os.getenv("PENPOT_USERNAME") 
-    password = os.getenv("PENPOT_PASSWORD")
-    
-    if not all([api_url, username, password]):
+    api_key = os.getenv("PENPOT_API_KEY")
+
+    if not all([api_url, api_key]):
         print("❌ Missing credentials in .env file")
-        print("Required: PENPOT_API_URL, PENPOT_USERNAME, PENPOT_PASSWORD")
+        print("Required: PENPOT_API_URL, PENPOT_API_KEY")
         return False
     
     print(f"🔗 Testing connection to: {api_url}")
-    print(f"👤 Username: {username}")
+    print("🔑 Using API key authentication")
     
     try:
-        api = PenpotAPI(api_url, debug=False, email=username, password=password)
-        
-        print("🔐 Authenticating...")
-        token = api.login_with_password()
-        print("✅ Authentication successful!")
+        api = PenpotAPI(api_url, debug=False, api_key=api_key)
+
+        print("👤 Fetching profile...")
+        profile = api.get_profile()
+        profile_name = profile.get('fullname') if isinstance(profile, dict) else 'Unknown'
+        print(f"✅ Authenticated as: {profile_name}")
         
         print("📁 Fetching projects...")
         projects = api.list_projects()
